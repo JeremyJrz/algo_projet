@@ -85,9 +85,6 @@ for i, (customers, vehicles, capacity) in enumerate(scenarios):
     datasets.append(dataset)
 
 
-print("Number of datasets:", len(datasets))
-
-
 # Travel costs with calculation of Euclidean distance
 def generate_cost_matrix(coordinates):
 
@@ -122,7 +119,7 @@ for dataset in datasets:
 
 
 # Display an example dataset
-example = datasets[0]
+example = datasets[2]
 
 print("Customers:", example["num_customers"])
 print("Vehicles:", example["num_vehicles"])
@@ -233,21 +230,10 @@ def visualize_cvrp_graph(dataset):
 
 
 # Visualize the graph by changing the dataset index
-visualize_cvrp_graph(datasets[19])
+visualize_cvrp_graph(datasets[2])
 
 
-# Display information about all datasets
-for i, dataset in enumerate(datasets):
 
-    print(f"Dataset {i + 1}")
-    print("Customers:", dataset["num_customers"])
-    print("Vehicles:", dataset["num_vehicles"])
-    print("Capacity:", dataset["capacity"])
-    print("Total demand:", sum(dataset["demands"]))
-    print("Graph size:", dataset["cost_matrix"].shape)
-    print("Minimum travel cost:", dataset["cost_matrix"].min())
-    print("Maximum travel cost:", dataset["cost_matrix"].max())
-    print("-" * 30)
 
 
 
@@ -702,7 +688,7 @@ def visualize_convergence(history):
     plt.show()
 
 # Select a dataset
-dataset_index = 19
+dataset_index = 2
 
 selected_dataset = datasets[dataset_index]
 
