@@ -5,32 +5,33 @@ import time
 
 # ---Line 236 and 705 for change the scnearios (dataset)---
 
-# Generation randomly dataset of the coordinates of customers and demands
+# Generation randomly dataset of the coordinates of depot + customer and demands
 def generate_cvrp_dataset(
     num_customers,
     num_vehicles,
     capacity,
-    seed=None
+    seed=None # seed for the same random result every time (Reproducibility)
 ):
     if seed is not None:
         random.seed(seed)
 
     # Depot + Customer coordinates
     coordinates = [
-        (random.randint(0, 35), random.randint(0, 35))
+        (random.randint(0, 35), random.randint(0, 35)) # Range of 0 - 35 for the travel cost do not exceed 50
         for _ in range(num_customers + 1)
     ]
 
     # Depot demand = 0
     demands = [0]
 
-    # Generate customer demands
+    # Generate customer demands range of 1 ~ 5
     for _ in range(num_customers):
-        demands.append(random.randint(1, 5))
+        demands.append(random.randint(1, 5)) 
 
     # Check whether total demand can be served
     total_demand = sum(demands)
 
+    # If the vehicle's capacity exceeds total demands
     if total_demand > num_vehicles * capacity:
         raise ValueError("Total demand exceeds total vehicle capacity.")
 
@@ -48,7 +49,7 @@ def generate_cvrp_dataset(
 
 # Number of customers, vehicles, capacity of vehicles
 scenarios = [
-    (5, 2, 15),
+    (5, 2, 15), # 5 customers, 2 vehicules, 15 capacity per vehicule
     (8, 2, 20),
     (10, 3, 20),
     (12, 3, 25),
@@ -70,16 +71,17 @@ scenarios = [
     (100, 12, 75)
 ]
 
-
+# An empty list to store the generated datasets in order
 datasets = []
 
+# Iterate through the predefined scenarios one by one, using "enumerate" to retrieve the index "i" that indicates the current iteration number
 for i, (customers, vehicles, capacity) in enumerate(scenarios):
 
     dataset = generate_cvrp_dataset(
         num_customers=customers,
         num_vehicles=vehicles,
         capacity=capacity,
-        seed=42 + i
+        seed=42 + i # 42 + 0 = seed 42, 42 + 1 = seed 43, 42 + 2 = seed 44...
     )
 
     datasets.append(dataset)
@@ -90,6 +92,7 @@ def generate_cost_matrix(coordinates):
 
     num_vertices = len(coordinates)
 
+    # Cost matrix matrix filled with zeros
     cost_matrix = np.zeros(
         (num_vertices, num_vertices),
         dtype=int
@@ -101,11 +104,12 @@ def generate_cost_matrix(coordinates):
             x1, y1 = coordinates[i]
             x2, y2 = coordinates[j]
 
+            # Euclidean distance between two customers (two vertices)
             distance = np.sqrt(
                 (x1 - x2)**2 + (y1 - y2)**2
             )
 
-            cost_matrix[i][j] = round(distance)
+            cost_matrix[i][j] = round(distance) # round to make an integer
 
     return cost_matrix
 
@@ -118,7 +122,7 @@ for dataset in datasets:
     )
 
 
-# Display an example dataset
+# Display a dataset we want (between 0 - 19 -> 20 scenairos) (line 51)
 example = datasets[2]
 
 print("Customers:", example["num_customers"])
@@ -229,7 +233,7 @@ def visualize_cvrp_graph(dataset):
     plt.show()
 
 
-# Visualize the graph by changing the dataset index
+# Visualize the graph we want by changing the dataset index
 visualize_cvrp_graph(datasets[2])
 
 
@@ -248,7 +252,7 @@ def is_feasible_solution(solution, dataset):
     capacity = dataset["capacity"]
     demands = dataset["demands"]
 
-    # Check the number of vehicles
+    # 1. The number of vehicles used must not exceed the number of vehicles permitted by the dataset
     if len(solution) > num_vehicles:
         return False
 
@@ -256,32 +260,34 @@ def is_feasible_solution(solution, dataset):
 
     for route in solution:
 
-        # Each route must start and end at the depot
-        if len(route) < 3:
+        # 2. Each route must start and end at the depot 
+        if len(route) < 3: # at least Depot -> Customer -> Depot
             return False
 
         if route[0] != 0 or route[-1] != 0:
             return False
 
-        customers = route[1:-1]
+        # 3. Check if there is a depot (0) within the route
+        customers = route[1:-1] # Exclude the first and last elements of the path
 
         # Depot cannot appear inside a route
         if 0 in customers:
             return False
 
-        # Check customer indices
+        # 4. Check customer indices (if 5 customers, the number of customers must be range of 1 to 5)
         if any(c < 1 or c > num_customers for c in customers):
             return False
 
-        # Check vehicle capacity
+        # 5. Check vehicle capacity
         total_load = sum(demands[c] for c in customers)
 
         if total_load > capacity:
             return False
 
+        # Each vehicle continues add the visited customers
         visited_customers.extend(customers)
 
-    # Every customer must be visited exactly once
+    # 6. Every customer must be visited exactly once
     return sorted(visited_customers) == list(
         range(1, num_customers + 1)
     )
@@ -299,6 +305,7 @@ def calculate_total_cost(solution, cost_matrix):
             current_node = route[i]
             next_node = route[i + 1]
 
+            # After bring the current node and the next node, get the travel cost between the two nodes from the cost_matrix
             total_cost += cost_matrix[current_node][next_node]
 
     return total_cost
@@ -307,14 +314,15 @@ def calculate_total_cost(solution, cost_matrix):
 # Construct a CVRP solution using one ant
 def construct_ant_solution(
     dataset,
-    pheromone,
+    pheromone, 
     heuristic,
-    alpha,
-    beta,
-    rng,
-    max_restarts=50
+    alpha, # Regulate the influence of pheromones
+    beta, # Regulate the influence of heuristic
+    rng, # Random Generator for choice randomly customer
+    max_restarts=50 # Maximum nb or retries to find a valid solution
 ):
 
+    # Dataset
     num_customers = dataset["num_customers"]
     num_vehicles = dataset["num_vehicles"]
     capacity = dataset["capacity"]
@@ -327,7 +335,10 @@ def construct_ant_solution(
     # Retry if a random construction produces an infeasible solution
     for _ in range(max_restarts):
 
-        unvisited = set(range(1, num_customers + 1))
+        # Set of customers who have not yet visited 
+        unvisited = set(range(1, num_customers + 1)) # = {1,2,3,4,5} if 5 customers
+        
+        # List for stores the final route for each vehicle
         solution = []
 
         # Construct routes for available vehicles
@@ -336,9 +347,10 @@ def construct_ant_solution(
             if not unvisited:
                 break
 
-            route = [0]
-            current_node = 0
-            current_load = 0
+            # Initial state
+            route = [0] # Start for depot 
+            current_node = 0 # Current location is depot
+            current_load = 0 # Current load is 0
 
             while unvisited:
 
@@ -349,16 +361,27 @@ def construct_ant_solution(
                     if current_load + demands[customer] <= capacity
                 ]
 
-                # Return to depot if no customer can be added
+                '''If : 
+                capacity = 10
+                current_load = 7
+                demands =  [0, 2, 3, 4, 2, 5]
+                unvisited = {1, 2, 3, 4, 5}
+                candidates will be : candidates = [1, 2, 4]
+                '''
+
+                # Return to depot if no customer can be added and next vehicle move to vist the rest customers
                 if not candidates:
                     break
 
-                # Calculate transition probabilities
+                # Calculate transition probabilities for choice next customer in current location
                 candidates = np.array(candidates, dtype=int)
 
+                # Pheromone values ​​between the current location and the customers that can be visited (i to j)
                 pheromone_values = pheromone[current_node, candidates]
+                # Heuristic values ​​between the current location and the customers that can be visited (i to j)
                 heuristic_values = heuristic[current_node, candidates]
 
+                # Probability of selecting the next customer (Do not simply select the customer with the highest probability; instead, make a selection randomly based on the probabilities)
                 probabilities = (
                     pheromone_values ** alpha
                     * heuristic_values ** beta
@@ -368,28 +391,30 @@ def construct_ant_solution(
 
                 # Use uniform probabilities if necessary
                 if (
-                    not np.isfinite(probability_sum)
+                    not np.isfinite(probability_sum) # if invalid value
                     or probability_sum <= 0
                 ):
+                    # Equal probability for all candidates
                     probabilities = np.ones(len(candidates)) / len(candidates)
 
+                # Normalize so that the sum of probabilities becomes 1
                 else:
                     probabilities = probabilities / probability_sum
 
-                # Randomly select the next customer
+                # Randomly select the next customer with the probability we calculted
                 next_customer = int(
                     rng.choice(candidates, p=probabilities)
                 )
 
                 # Update route and vehicle load
-                route.append(next_customer)
+                route.append(next_customer) # Add selected customers to the route
 
-                current_load += demands[next_customer]
-                current_node = next_customer
+                current_load += demands[next_customer] # Update vehicle load capacity
+                current_node = next_customer # Update current location
 
-                unvisited.remove(next_customer)
+                unvisited.remove(next_customer) # Remove visited customer in list unvisited
 
-            # Return to depot
+            # Return to depot 
             if len(route) > 1:
                 route.append(0)
                 solution.append(route)
@@ -398,7 +423,7 @@ def construct_ant_solution(
             if not unvisited:
                 break
 
-        # Validate the completed solution
+        # Validate the completed solution (if unvisited list is empty and the solution respect the contraints)
         if not unvisited and is_feasible_solution(solution, dataset):
             return solution
 
