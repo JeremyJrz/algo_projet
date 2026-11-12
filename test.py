@@ -433,12 +433,12 @@ def construct_ant_solution(
 # Ant Colony Optimization for CVRP
 def aco_cvrp(
     dataset,
-    num_ants=20,
-    num_iterations=100,
+    num_ants=20, # Single iteration -> 20 ants each generate a solution
+    num_iterations=100, # Repeat 100 times, 2000 solutions in total
     alpha=1,
     beta=2,
-    evaporation_rate=0.5,
-    Q=100,
+    evaporation_rate=0.5, # Pheromone evaporation rate
+    Q=100, # A value that controls how much pheromone is deposited along a good path
     seed=42
 ):
 
@@ -459,7 +459,7 @@ def aco_cvrp(
 
     rng = np.random.default_rng(seed)
 
-    # Initialize pheromone matrix
+    # Initialize pheromone matrix to 1 because all routes have same values as a 1 when we start
     pheromone = np.ones(
         (num_vertices, num_vertices),
         dtype=float
@@ -467,20 +467,21 @@ def aco_cvrp(
 
     # Calculate heuristic information
     # Shorter distances receive higher heuristic values
-    heuristic = 1.0 / (cost_matrix.astype(float) + 1e-6)
+    heuristic = 1.0 / (cost_matrix.astype(float) + 1e-6) # If cost is 10 become 0.1
 
     # No self-transition
     np.fill_diagonal(heuristic, 0)
 
-    best_solution = None
-    best_cost = float("inf")
+    # Initialization of best solution
+    best_solution = None # the best route we found until now
+    best_cost = float("inf") # the best toal cost in best route, float("inf") means infinity
 
-    convergence_history = []
+    convergence_history = [] # Best cost recorded at each iteration
 
     # Main ACO loop
-    for iteration in range(num_iterations):
+    for iteration in range(num_iterations): # 100 iterations
 
-        iteration_solutions = []
+        iteration_solutions = [] # List which store the valid solution and each cost in current iteration
 
         # Each ant constructs one solution
         for ant in range(num_ants):
@@ -494,6 +495,7 @@ def aco_cvrp(
                 rng=rng
             )
 
+            # Calcul total cost of solution we found
             if solution is not None:
 
                 solution_cost = calculate_total_cost(
@@ -515,14 +517,16 @@ def aco_cvrp(
                         for route in solution
                     ]
 
-        # Evaporate pheromone
+        # Evaporate pheromone after ants generated the solutions to Prevents the exclusive selection of paths that yielded good results in the past, while maintaining the possibility of exploring new paths
         pheromone *= (1 - evaporation_rate)
 
         # Update pheromone using feasible solutions
         for solution, solution_cost in iteration_solutions:
 
+            # The lower the movement cost of a solution, the more pheromones
             deposit = Q / max(solution_cost, 1e-9)
 
+            # Add Pheromone to the path
             for route in solution:
 
                 for i in range(len(route) - 1):
@@ -530,13 +534,14 @@ def aco_cvrp(
                     node_a = route[i]
                     node_b = route[i + 1]
 
+                    # Add Pheromono to the two paths beacuase it's undirected graph (d_ij = d_ji)
                     pheromone[node_a][node_b] += deposit
                     pheromone[node_b][node_a] += deposit
 
         # Additional reinforcement of the global best solution
         if best_solution is not None:
 
-            best_deposit = 2 * Q / max(best_cost, 1e-9)
+            best_deposit = 2 * Q / max(best_cost, 1e-9) # Double
 
             for route in best_solution:
 
@@ -558,7 +563,7 @@ def aco_cvrp(
         # Record the best cost at each iteration
         convergence_history.append(best_cost)
 
-        # Display progress
+        # Display progress each 10 iteration
         if (iteration + 1) % 10 == 0:
 
             print(
@@ -566,6 +571,7 @@ def aco_cvrp(
                 f"| Best Cost: {best_cost}"
             )
 
+    # If we didn't found valid solution after all iterationis -> error
     if best_solution is None:
         raise RuntimeError(
             "No feasible solution was found. "
@@ -739,6 +745,7 @@ best_solution, best_cost, history = aco_cvrp(
 
 end_time = time.perf_counter()
 
+# Total execution time
 execution_time = end_time - start_time
 
 # Display results
